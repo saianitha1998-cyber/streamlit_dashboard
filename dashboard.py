@@ -123,10 +123,9 @@ else:
                 if cols[4].button("Review", key=f"review_{i}"):
                     st.info(f"Review clicked for {row['KPI Name']}")
 
-            if not st.session_state.review_done:
-                if st.button("✅ Review and Accept", use_container_width=True):
-                    st.session_state.review_done = True
-                    st.rerun()
+            # ✅ Always visible
+            if st.button("✅ Review and Accept", use_container_width=True):
+                st.session_state.review_done = True
 
         # ---- Step 2: After Review → show Recommended along with Preview ----
         if st.session_state.review_done:
