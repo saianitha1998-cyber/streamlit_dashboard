@@ -11,7 +11,7 @@ st.set_page_config(page_title="Prospectra Dashboard", layout="wide")
 # ---- Mock credentials ----
 USER_CREDENTIALS = {"admin": "admin123", "user": "user123"}
 
-# ---- Session state ----
+# ---- Session state defaults ----
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 if "username" not in st.session_state:
@@ -23,46 +23,48 @@ if "extracted_kpis" not in st.session_state:
 if "recommended_kpis" not in st.session_state:
     st.session_state.recommended_kpis = pd.DataFrame()
 
-# ---- Helper: color mapping for statuses (used in styled preview) ----
+# ---- Helpers ----
 def color_status(val):
     color_map = {
-        "Validated": "background-color: #d4edda; color: #155724; font-weight:bold;",   # Green
-        "Rejected": "background-color: #f8d7da; color: #721c24; font-weight:bold;",   # Red
-        "Recommended": "background-color: #cce5ff; color: #004085; font-weight:bold;", # Blue
-        "Accepted": "background-color: #fff3cd; color: #856404; font-weight:bold;",   # Yellow
-        "Extracted": "background-color: #e2e3e5; color: #383d41; font-weight:bold;"   # Grey
+        "Validated": "background-color: #d4edda; color: #155724; font-weight:bold;",
+        "Rejected": "background-color: #f8d7da; color: #721c24; font-weight:bold;",
+        "Recommended": "background-color: #cce5ff; color: #004085; font-weight:bold;",
+        "Accepted": "background-color: #fff3cd; color: #856404; font-weight:bold;",
+        "Extracted": "background-color: #e2e3e5; color: #383d41; font-weight:bold;"
     }
     return color_map.get(val, "")
 
-# ---- Helper: safe data_editor wrapper (fall back if API differs) ----
 def safe_data_editor(df, column_config=None):
+    """
+    Wrapper to support multiple Streamlit versions.
+    If interactive editor is unavailable, returns the original df (read-only).
+    """
     try:
-        # Primary (newer Streamlit)
-        if column_config:
+        if column_config is not None:
             return st.data_editor(df, column_config=column_config, num_rows="dynamic", use_container_width=True)
         else:
             return st.data_editor(df, num_rows="dynamic", use_container_width=True)
     except Exception:
         try:
-            # Older experimental API fallback
-            if column_config:
+            # fallback for older API
+            if column_config is not None:
                 return st.experimental_data_editor(df, num_rows="dynamic", use_container_width=True)
             else:
                 return st.experimental_data_editor(df, num_rows="dynamic", use_container_width=True)
         except Exception:
-            # As last resort, show static dataframe and return it (no edits)
             st.warning("Interactive editor not available in this Streamlit version — showing read-only table.")
             st.dataframe(df, use_container_width=True)
             return df
 
-# ---- Helper: docx text extraction using stdlib (no external package) ----
 def extract_text_from_docx_bytes(content_bytes: bytes) -> str:
+    """
+    Extracts text from .docx bytes using stdlib (no external package required).
+    """
     try:
         with zipfile.ZipFile(io.BytesIO(content_bytes)) as z:
             xml_content = z.read("word/document.xml")
     except Exception:
         return ""
-    # parse XML and extract text from w:t elements
     try:
         tree = ET.fromstring(xml_content)
         namespace = {"w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main"}
@@ -75,52 +77,43 @@ def extract_text_from_docx_bytes(content_bytes: bytes) -> str:
     except Exception:
         return ""
 
-# ---- Helper: PDF extraction (optional external libs) ----
 def extract_text_from_pdf_bytes(content_bytes: bytes) -> (str, str):
     """
-    Attempts to extract PDF text using pdfplumber or PyPDF2 if installed.
-    Returns (text, error_message). If both are missing or extraction fails, text="" and error_message set.
+    Tries pdfplumber then PyPDF2. Returns (text, error_msg).
     """
-    # try pdfplumber first
     try:
         import pdfplumber
         with pdfplumber.open(io.BytesIO(content_bytes)) as pdf:
             pages = [p.extract_text() or "" for p in pdf.pages]
             return "\n".join(pages), ""
     except Exception:
-        # try PyPDF2
         try:
             from PyPDF2 import PdfReader
             reader = PdfReader(io.BytesIO(content_bytes))
             pages = []
             for p in reader.pages:
-                txt = ""
                 try:
-                    txt = p.extract_text() or ""
+                    pages.append(p.extract_text() or "")
                 except Exception:
-                    txt = ""
-                pages.append(txt)
+                    pages.append("")
             return "\n".join(pages), ""
         except Exception:
             err = (
-                "PDF parsing requires either 'pdfplumber' or 'PyPDF2' installed in the environment. "
-                "You can either: upload a DOCX or TXT BRD, or install pdfplumber (recommended) via "
-                "`pip install pdfplumber` in your environment."
+                "PDF parsing requires 'pdfplumber' or 'PyPDF2'. "
+                "Upload DOCX/TXT or install pdfplumber (recommended): pip install pdfplumber"
             )
             return "", err
 
-# ---- Unified extractor for uploaded files ----
 def extract_text_from_uploaded_file(uploaded_file) -> (str, str):
     """
-    Returns (text, error_msg). If successful, error_msg == "".
+    Returns (text, error_msg).
     """
     name = uploaded_file.name.lower()
-    content = uploaded_file.read()  # bytes
-    # Reset file pointer not necessary; we consumed it with .read()
+    content = uploaded_file.read()
     if name.endswith(".docx"):
         txt = extract_text_from_docx_bytes(content)
         if not txt.strip():
-            return "", "Unable to extract text from DOCX (maybe the document is corrupted)."
+            return "", "Unable to extract text from DOCX (file may be complex or corrupted)."
         return txt, ""
     elif name.endswith(".pdf"):
         txt, err = extract_text_from_pdf_bytes(content)
@@ -135,18 +128,21 @@ def extract_text_from_uploaded_file(uploaded_file) -> (str, str):
         except Exception:
             return "", "Failed to decode TXT file."
     else:
-        return "", "Unsupported file type. Please upload DOCX, PDF or TXT."
+        return "", "Unsupported file type. Please upload DOCX, PDF, or TXT."
 
-# ---- KPI extraction logic (keyword / pattern based) ----
 def extract_kpis_from_text(text: str) -> pd.DataFrame:
+    """
+    Naive keyword/pattern-based KPI extraction. Returns DataFrame with columns:
+    KPI Name, Description, Target Value, Status
+    """
     t = text.lower()
     kpis = []
     def add(name, desc, target):
         kpis.append([name, desc, target, "Extracted"])
-    # Patterns / keywords derived from typical BRD pieces (customise as needed)
+
     if re.search(r"drop[\s-]?offs?|drop[\s-]?off", t):
-        add("Application Drop-off Rate", "Percentage of candidates abandoning applications", "Reduce")
-    if re.search(r"time[\s-]?to[\s-]?fill|time[- ]to[- ]fill", t):
+        add("Application Drop-off Rate", "Percentage of candidates abandoning application", "Reduce")
+    if re.search(r"time[\s-]?to[\s-]?fill|time to fill", t):
         add("Time-to-Fill", "Average days from requisition to offer", "< 30 days")
     if "candidate satisfaction" in t or "candidate experience" in t or "satisfaction score" in t:
         add("Candidate Satisfaction Score", "Candidate survey rating", "> 8/10")
@@ -160,26 +156,25 @@ def extract_kpis_from_text(text: str) -> pd.DataFrame:
         add("Recruiter Productivity", "Avg. requisitions closed per recruiter", "Increase")
     if "integration" in t or "integrat" in t:
         add("Integration Success Rate", "Percent integrations working without manual intervention", "> 95%")
-    # If no KPIs found, try to find lines under headings like "Success Criteria" or "Measurement"
+
+    # If nothing matched, infer some lines under headings
     if not kpis:
-        # naive attempt: split lines, find lines containing keywords and convert
         lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
         for ln in lines:
             if any(word in ln.lower() for word in ("success", "measure", "kpi", "drop", "time-to-fill", "satisfaction", "uptime", "automation")):
-                # create small heuristic KPI from line
-                shortened = ln if len(ln) < 80 else ln[:80] + "..."
+                shortened = ln if len(ln) < 120 else ln[:120] + "..."
                 add("Inferred KPI", shortened, "-")
                 if len(kpis) >= 6:
                     break
-    # Deduplicate by KPI Name
+
     if kpis:
         df = pd.DataFrame(kpis, columns=["KPI Name", "Description", "Target Value", "Status"])
-        df = df.drop_duplicates(subset=["KPI Name"])
-        return df.reset_index(drop=True)
+        df = df.drop_duplicates(subset=["KPI Name"]).reset_index(drop=True)
+        return df
     else:
         return pd.DataFrame(columns=["KPI Name", "Description", "Target Value", "Status"])
 
-# ---- Login Page ----
+# ---- App UI: Login ----
 if not st.session_state.logged_in:
     st.title("🔐 Login Page")
     username = st.text_input("Username")
@@ -193,8 +188,9 @@ if not st.session_state.logged_in:
         else:
             st.error("❌ Invalid username or password")
 
+# ---- App UI: Main ----
 else:
-    # ---- NAVBAR (simple) ----
+    # Simple navbar
     nav_left, nav_right = st.columns([4, 1])
     with nav_left:
         st.markdown(
@@ -220,37 +216,34 @@ else:
 
     st.markdown("---")
 
-    # ---- Pages ----
+    # Pages
     if st.session_state.active_tab == "Dashboard":
         st.subheader("📊 Main Dashboard")
-        st.info("This is a placeholder for the **Dashboard** page.")
+        st.info("This is a placeholder for the Dashboard page.")
 
     elif st.session_state.active_tab == "KPI Recommender":
         st.subheader("🤖 KPI Recommender")
 
-        # ---- File Upload ----
         uploaded_file = st.file_uploader(
             "📂 Upload BRD (DOCX, PDF, TXT). DOCX preferred (no extra packages required).",
             type=["docx", "pdf", "txt"]
         )
+
         if uploaded_file:
-            # Process when button clicked
             if st.button("Process BRD File"):
                 with st.spinner("Extracting text from BRD..."):
                     text, err = extract_text_from_uploaded_file(uploaded_file)
                 if err:
                     st.error(err)
                 else:
-                    # extract KPIs
                     df_extracted = extract_kpis_from_text(text)
                     if df_extracted.empty:
-                        st.info("No clear KPIs found automatically. You can edit or add rows in the editor below.")
+                        st.info("No obvious KPIs were found automatically. You can edit or add rows in the editor below.")
                     st.session_state.extracted_kpis = df_extracted.copy()
 
-                    # create recommended table mapping owners heuristically
+                    # build recommended KPIs heuristically
                     recommended = []
-                    for _, row in df_extracted.iterrows():
-                        # heuristic owner: TA / IT for ATS project
+                    for _, row in st.session_state.extracted_kpis.iterrows():
                         recommended.append([row["KPI Name"], "Talent Acquisition / IT", row["Target Value"], "Recommended"])
                     if recommended:
                         st.session_state.recommended_kpis = pd.DataFrame(recommended, columns=["KPI Name", "Owner/ SME", "Target Value", "Status"])
@@ -259,11 +252,57 @@ else:
 
                     st.success("✅ KPIs extracted and tables populated. Edit as needed below.")
 
-        # ---- Extracted KPIs (editor + styled preview) ----
+        # ---- Preview Extracted Goals & KPIs ----
         st.subheader("📊 Preview Extracted Goals & KPIs")
         if st.session_state.extracted_kpis.empty:
-            # Keep a helpful example row so editor is not empty
             sample = [
                 ["Application Drop-off Rate", "Percentage of candidates abandoning applications", "Reduce", "Extracted"]
             ]
-            st.session_state.extracted_kp
+            st.session_state.extracted_kpis = pd.DataFrame(sample, columns=["KPI Name", "Description", "Target Value", "Status"])
+
+        # build column_config safely (some streamlit versions may not have column_config)
+        try:
+            col_cfg = {
+                "Status": st.column_config.SelectboxColumn(
+                    "Status",
+                    options=["Extracted", "Accepted", "Rejected", "Validated"]
+                )
+            }
+        except Exception:
+            col_cfg = None
+
+        edited_extracted = safe_data_editor(st.session_state.extracted_kpis, column_config=col_cfg)
+
+        if st.button("✅ Review and Accept Extracted KPIs"):
+            # ensure result is a DataFrame
+            if isinstance(edited_extracted, pd.DataFrame):
+                st.session_state.extracted_kpis = edited_extracted.copy()
+            else:
+                # fallback: leave as-is
+                st.session_state.extracted_kpis = st.session_state.extracted_kpis
+            st.success("Extracted KPIs updated!")
+
+        # styled preview
+        try:
+            styled = st.session_state.extracted_kpis.style.applymap(color_status, subset=["Status"])
+            st.dataframe(styled, use_container_width=True)
+        except Exception:
+            st.dataframe(st.session_state.extracted_kpis, use_container_width=True)
+
+        # ---- Extracted & Recommended KPIs ----
+        st.subheader("🔎 Extracted & Recommended KPIs")
+        if st.session_state.recommended_kpis.empty:
+            sample_rec = [
+                ["Application Drop-off Rate", "Talent Acquisition / IT", "Reduce", "Recommended"]
+            ]
+            st.session_state.recommended_kpis = pd.DataFrame(sample_rec, columns=["KPI Name", "Owner/ SME", "Target Value", "Status"])
+
+        try:
+            col_cfg_rec = {
+                "Status": st.column_config.SelectboxColumn(
+                    "Status",
+                    options=["Extracted", "Accepted", "Rejected", "Validated", "Recommended"]
+                )
+            }
+        except Exception:
+            col_cfg_rec = None
