@@ -92,8 +92,8 @@ else:
                 ["Time to Fill", "HR BP 1", "-", "Rejected"],
             ], columns=["KPI Name", "Owner/ SME", "Target Value", "Status"])
 
-        # ---- Step 1: Show Preview Extracted only ----
-        if st.session_state.brd_uploaded and not st.session_state.review_done:
+        # ---- Step 1: Show Preview Extracted ----
+        if st.session_state.brd_uploaded:
             st.markdown("### 📊 Preview Extracted Goals & KPIs")
             st.caption("Review the automatically extracted project goals and KPIs below.")
 
@@ -111,12 +111,14 @@ else:
                 if cols[4].button("Review", key=f"review_{i}"):
                     st.info(f"Review clicked for {row['KPI Name']}")
 
-            if st.button("✅ Review and Accept", use_container_width=True):
-                st.session_state.review_done = True
-                st.rerun()
+            if not st.session_state.review_done:
+                if st.button("✅ Review and Accept", use_container_width=True):
+                    st.session_state.review_done = True
+                    st.rerun()
 
-        # ---- Step 2: After Review → Show Recommended ----
+        # ---- Step 2: After Review → Show Recommended below Preview ----
         if st.session_state.review_done:
+            st.markdown("---")
             st.markdown("### 🔎 Extracted & Recommended KPIs")
             st.caption("Review and manage extracted and recommended KPIs.")
 
