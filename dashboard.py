@@ -16,6 +16,10 @@ if "username" not in st.session_state:
     st.session_state.username = ""
 if "active_tab" not in st.session_state:
     st.session_state.active_tab = "Dashboard"
+if "extracted_kpis" not in st.session_state:
+    st.session_state.extracted_kpis = pd.DataFrame()
+if "recommended_kpis" not in st.session_state:
+    st.session_state.recommended_kpis = pd.DataFrame()
 
 # ---- Login Page ----
 if not st.session_state.logged_in:
@@ -121,38 +125,76 @@ else:
     elif st.session_state.active_tab == "KPI Recommender":
         st.subheader("🤖 KPI Recommender")
 
+        # ---- File Upload ----
         uploaded_file = st.file_uploader("📂 Upload BRD (PDF, DOC, DOCX, TXT)", type=["pdf", "doc", "docx", "txt"])
         if uploaded_file:
             st.success("✅ File uploaded successfully!")
             if st.button("Process Uploaded File"):
                 st.info("🔄 Processing file... (mock example)")
 
-        # ---- Preview Extracted KPIs ----
+        # ---- Extracted KPIs ----
         st.subheader("📊 Preview Extracted Goals & KPIs")
-        data_extracted = [
-            ["Employee Turnover Rate", "Percentage leaving within a year.", "< 15%", "Extracted"],
-            ["Employee Satisfaction Score", "Average quarterly survey score.", "> 8.0/10", "Extracted"],
-            ["Employee Retention Rate (1 YR)", "Employees staying after 12 months.", "> 85%", "Extracted"]
-        ]
-        df_extracted = pd.DataFrame(data_extracted, columns=["KPI Name", "Description", "Target Value", "Status"])
-        st.table(df_extracted)
+        if st.session_state.extracted_kpis.empty:
+            data_extracted = [
+                ["Employee Turnover Rate", "Percentage leaving within a year.", "< 15%", "Extracted"],
+                ["Employee Satisfaction Score", "Average quarterly survey score.", "> 8.0/10", "Extracted"],
+                ["Employee Retention Rate (1 YR)", "Employees staying after 12 months.", "> 85%", "Extracted"]
+            ]
+            st.session_state.extracted_kpis = pd.DataFrame(data_extracted, columns=["KPI Name", "Description", "Target Value", "Status"])
 
-        st.button("✅ Review and Accept")
+        # Editable table for extracted KPIs with dropdowns
+        edited_extracted = st.data_editor(
+            st.session_state.extracted_kpis,
+            column_config={
+                "Status": st.column_config.SelectboxColumn(
+                    "Status",
+                    options=["Extracted", "Accepted", "Rejected", "Validated"]
+                )
+            },
+            num_rows="dynamic",
+            use_container_width=True
+        )
+
+        if st.button("✅ Review and Accept"):
+            st.session_state.extracted_kpis = edited_extracted
+            st.success("Extracted KPIs updated!")
 
         # ---- Recommended KPIs ----
         st.subheader("🔎 Extracted & Recommended KPIs")
-        data_recommended = [
-            ["Employee Turnover Rate", "HR BP 1", "< 15%", "Rejected"],
-            ["Employee Satisfaction Score", "HR BP 3", "> 8.0/10", "Validated"],
-            ["Employee Retention Rate (1 YR)", "HR BP 3", "> 85%", "Extracted"],
-            ["Involuntary Attrition", "HR BP 2", "-", "Recommended"],
-            ["Absenteeism Rate", "HR BP 4", "-", "Recommended"],
-            ["Time to Fill", "HR BP 1", "-", "Rejected"]
-        ]
-        df_recommended = pd.DataFrame(data_recommended, columns=["KPI Name", "Owner/ SME", "Target Value", "Status"])
-        st.table(df_recommended)
+        if st.session_state.recommended_kpis.empty:
+            data_recommended = [
+                ["Employee Turnover Rate", "HR BP 1", "< 15%", "Rejected"],
+                ["Employee Satisfaction Score", "HR BP 3", "> 8.0/10", "Validated"],
+                ["Employee Retention Rate (1 YR)", "HR BP 3", "> 85%", "Extracted"],
+                ["Involuntary Attrition", "HR BP 2", "-", "Recommended"],
+                ["Absenteeism Rate", "HR BP 4", "-", "Recommended"],
+                ["Time to Fill", "HR BP 1", "-", "Rejected"]
+            ]
+            st.session_state.recommended_kpis = pd.DataFrame(data_recommended, columns=["KPI Name", "Owner/ SME", "Target Value", "Status"])
 
-        st.button("🔒 Validate")
+        # Editable table for recommended KPIs with dropdowns
+        edited_recommended = st.data_editor(
+            st.session_state.recommended_kpis,
+            column_config={
+                "Status": st.column_config.SelectboxColumn(
+                    "Status",
+                    options=["Extracted", "Accepted", "Rejected", "Validated", "Recommended"]
+                )
+            },
+            num_rows="dynamic",
+            use_container_width=True
+        )
+
+        if st.button("🔒 Validate"):
+            st.session_state.recommended_kpis = edited_recommended
+            st.success("Recommended KPIs updated!")
+
+        # Show current tables
+        st.subheader("📄 Current Extracted KPIs")
+        st.dataframe(st.session_state.extracted_kpis, use_container_width=True)
+
+        st.subheader("📄 Current Recommended KPIs")
+        st.dataframe(st.session_state.recommended_kpis, use_container_width=True)
 
     elif st.session_state.active_tab == "JIRA":
         st.subheader("📌 JIRA Integration & Task Management")
