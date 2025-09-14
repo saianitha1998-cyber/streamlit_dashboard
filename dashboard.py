@@ -1,5 +1,11 @@
 import streamlit as st
 import pandas as pd
+from io import BytesIO
+
+# For docx
+import docx
+# For PDF
+import PyPDF2
 
 st.set_page_config(page_title="Prospectra Dashboard", layout="wide")
 
@@ -26,17 +32,54 @@ if "preview_actions" not in st.session_state:
 if "final_kpis" not in st.session_state:
     st.session_state.final_kpis = pd.DataFrame()
 
+
 # ---- Badge Renderer ----
 def render_status_badge(status: str) -> str:
     colors = {
-        "Extracted": "#007bff",     # Blue
-        "Validated": "#28a745",     # Green
-        "Rejected": "#dc3545",      # Red
-        "Recommended": "#17a2b8",   # Cyan
-        "Accepted": "#ffc107",      # Yellow
+        "Extracted": "#007bff",
+        "Validated": "#28a745",
+        "Rejected": "#dc3545",
+        "Recommended": "#17a2b8",
+        "Accepted": "#ffc107",
     }
-    color = colors.get(status, "#6c757d")  # default gray
+    color = colors.get(status, "#6c757d")
     return f"<span style='background-color:{color}; color:white; padding:3px 8px; border-radius:10px; font-size:13px;'>{status}</span>"
+
+
+# ---- Function to read KPI from uploaded file ----
+def extract_kpis_from_file(uploaded_file):
+    kpi_list = []
+    text_content = ""
+
+    if uploaded_file.type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+        doc = docx.Document(uploaded_file)
+        text_content = "\n".join([p.text for p in doc.paragraphs])
+    elif uploaded_file.type == "application/pdf":
+        reader = PyPDF2.PdfReader(uploaded_file)
+        text_content = "\n".join([page.extract_text() for page in reader.pages])
+    elif uploaded_file.type == "text/plain":
+        text_content = str(uploaded_file.read(), 'utf-8')
+    else:
+        st.error("Unsupported file type!")
+        return pd.DataFrame()
+
+    # Simple parsing: assume each KPI line contains "KPI" keyword
+    lines = [line.strip() for line in text_content.split("\n") if line.strip()]
+    for line in lines:
+        if ":" in line:
+            parts = line.split(":")
+            if len(parts) >= 2:
+                kpi_name = parts[0].strip()
+                desc = parts[1].strip()
+                kpi_list.append([kpi_name, desc, "-", "Extracted"])
+
+    if not kpi_list:
+        # Fallback if no ":" found
+        for line in lines:
+            kpi_list.append([line[:30], line, "-", "Extracted"])  # name first 30 chars
+
+    return pd.DataFrame(kpi_list, columns=["KPI Name", "Description", "Target Value", "Status"])
+
 
 # ---- Login Page ----
 if not st.session_state.logged_in:
@@ -50,6 +93,7 @@ if not st.session_state.logged_in:
             st.rerun()
         else:
             st.error("❌ Invalid username or password")
+
 
 # ---- Main App ----
 else:
@@ -100,12 +144,8 @@ else:
             st.session_state.preview_actions = {}
             st.session_state.final_kpis = pd.DataFrame()
 
-            # Mock extracted KPIs
-            st.session_state.extracted = pd.DataFrame([
-                ["Employee Turnover Rate", "Percentage leaving within a year.", "< 15%", "Extracted"],
-                ["Employee Satisfaction Score", "Average quarterly survey score.", "> 8.0/10", "Extracted"],
-                ["Employee Retention Rate (1 YR)", "Employees staying after 12 months.", "> 85%", "Extracted"],
-            ], columns=["KPI Name", "Description", "Target Value", "Status"])
+            # Extract KPIs dynamically from file
+            st.session_state.extracted = extract_kpis_from_file(uploaded_file)
 
             # Mock recommended KPIs
             st.session_state.recommended = pd.DataFrame([
@@ -157,7 +197,6 @@ else:
 
                 # Merge with recommended KPIs
                 df_all = pd.concat([df_preview, st.session_state.recommended], ignore_index=True)
-
                 st.session_state.final_kpis = df_all
                 st.session_state.review_done = True
                 st.rerun()
@@ -169,7 +208,6 @@ else:
             st.caption("Preview decisions are final. Recommended KPIs still require action.")
 
             df_all = st.session_state.final_kpis.copy()
-
             header_cols = st.columns([3, 3, 2, 2, 3])
             headers = ["KPI Name", "Owner/ SME", "Target Value", "Status", "Actions"]
             for col, h in zip(header_cols, headers):
@@ -184,7 +222,6 @@ else:
 
                 with cols[4]:
                     if row["Status"] in ["Accepted", "Rejected"]:
-                        # Dynamically show review details instead of finalized
                         cols[4].markdown(f"🔍 Review Details: **{row['Status']}**")
                     else:
                         c1, c2 = st.columns([1, 1])
