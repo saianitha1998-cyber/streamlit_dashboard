@@ -22,7 +22,9 @@ if "extracted" not in st.session_state:
 if "recommended" not in st.session_state:
     st.session_state.recommended = pd.DataFrame()
 if "preview_actions" not in st.session_state:
-    st.session_state.preview_actions = {}  # store Accept/Reject per row
+    st.session_state.preview_actions = {}  # stores Accept/Reject from Preview
+if "final_kpis" not in st.session_state:
+    st.session_state.final_kpis = pd.DataFrame()
 
 # ---- Badge Renderer ----
 def render_status_badge(status: str) -> str:
@@ -78,6 +80,7 @@ else:
             st.session_state.extracted = pd.DataFrame()
             st.session_state.recommended = pd.DataFrame()
             st.session_state.preview_actions = {}
+            st.session_state.final_kpis = pd.DataFrame()
             st.rerun()
 
     st.markdown("---")
@@ -96,15 +99,16 @@ else:
             st.session_state.brd_uploaded = True
             st.session_state.review_done = False
             st.session_state.preview_actions = {}
+            st.session_state.final_kpis = pd.DataFrame()
 
             # Mock extracted KPIs
             st.session_state.extracted = pd.DataFrame([
-                ["Employee Turnover Rate", "Percentage of employees leaving within a year.", "< 15%", "Extracted"],
-                ["Employee Satisfaction Score", "Average quarterly employee survey score.", "> 8.0/10", "Extracted"],
-                ["Employee Retention Rate (1 YR)", "Employees remaining after 12 months.", "> 85%", "Extracted"],
+                ["Employee Turnover Rate", "Percentage leaving within a year.", "< 15%", "Extracted"],
+                ["Employee Satisfaction Score", "Average quarterly survey score.", "> 8.0/10", "Extracted"],
+                ["Employee Retention Rate (1 YR)", "Employees staying after 12 months.", "> 85%", "Extracted"],
             ], columns=["KPI Name", "Description", "Target Value", "Status"])
 
-            # Mock recommended KPIs (extra ones)
+            # Mock recommended KPIs
             st.session_state.recommended = pd.DataFrame([
                 ["Involuntary Attrition", "HR BP 2", "-", "Recommended"],
                 ["Absenteeism Rate", "HR BP 4", "-", "Recommended"],
@@ -128,9 +132,6 @@ else:
                 cols[2].write(row["Target Value"])
                 cols[3].markdown(render_status_badge("Extracted"), unsafe_allow_html=True)
 
-                # Track temporary actions
-                action_taken = st.session_state.preview_actions.get(i, "")
-
                 with cols[4]:
                     c1, c2 = st.columns([1, 1])
                     if c1.button("✅ Accept", key=f"accept_prev_{i}"):
@@ -140,32 +141,35 @@ else:
                         st.session_state.preview_actions[i] = "Rejected"
                         st.rerun()
 
-                if action_taken:
-                    cols[4].markdown(f"➡️ Selected: **{action_taken}**")
+                if i in st.session_state.preview_actions:
+                    cols[4].markdown(f"➡️ Selected: **{st.session_state.preview_actions[i]}**")
 
-            # Review and Accept to carry forward
             if st.button("✅ Review and Accept", use_container_width=True):
+                # Merge preview actions into extracted
+                extracted_with_status = []
+                for i, row in st.session_state.extracted.iterrows():
+                    status = st.session_state.preview_actions.get(i, "Extracted")
+                    extracted_with_status.append([row["KPI Name"], "HR BP ?", row["Target Value"], status])
+
+                df_preview = pd.DataFrame(
+                    extracted_with_status,
+                    columns=["KPI Name", "Owner/ SME", "Target Value", "Status"]
+                )
+
+                # Merge preview decisions with recommended
+                df_all = pd.concat([df_preview, st.session_state.recommended], ignore_index=True)
+
+                st.session_state.final_kpis = df_all
                 st.session_state.review_done = True
+                st.rerun()
 
         # ---- Step 2: Extracted & Recommended KPIs ----
         if st.session_state.review_done:
             st.markdown("---")
             st.markdown("### 🔎 Extracted & Recommended KPIs")
-            st.caption("Includes accepted/rejected preview KPIs + new recommended KPIs.")
+            st.caption("Includes your accepted/rejected preview KPIs and the additional recommended KPIs.")
 
-            # Merge preview actions into extracted list
-            extracted_with_status = []
-            for i, row in st.session_state.extracted.iterrows():
-                status = st.session_state.preview_actions.get(i, "Extracted")
-                extracted_with_status.append([row["KPI Name"], "HR BP ?", row["Target Value"], status])
-
-            df_all = pd.DataFrame(
-                extracted_with_status,
-                columns=["KPI Name", "Owner/ SME", "Target Value", "Status"]
-            )
-
-            # Append recommended KPIs
-            df_all = pd.concat([df_all, st.session_state.recommended], ignore_index=True)
+            df_all = st.session_state.final_kpis.copy()
 
             # Display table with actions
             header_cols = st.columns([3, 3, 2, 2, 4])
@@ -184,15 +188,15 @@ else:
                     c1, c2, c3 = st.columns([1, 1, 1])
                     if c1.button("✅ Accept", key=f"accept_final_{i}"):
                         df_all.at[i, "Status"] = "Accepted"
-                        st.session_state.recommended = df_all.iloc[len(extracted_with_status):]
+                        st.session_state.final_kpis = df_all
                         st.rerun()
                     if c2.button("✔️ Validate", key=f"validate_final_{i}"):
                         df_all.at[i, "Status"] = "Validated"
-                        st.session_state.recommended = df_all.iloc[len(extracted_with_status):]
+                        st.session_state.final_kpis = df_all
                         st.rerun()
                     if c3.button("❌ Reject", key=f"reject_final_{i}"):
                         df_all.at[i, "Status"] = "Rejected"
-                        st.session_state.recommended = df_all.iloc[len(extracted_with_status):]
+                        st.session_state.final_kpis = df_all
                         st.rerun()
 
             st.button("🔒 Finalize Validation", use_container_width=True)
