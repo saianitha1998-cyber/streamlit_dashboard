@@ -27,7 +27,7 @@ if not st.session_state.logged_in:
             st.session_state.logged_in = True
             st.session_state.username = username
             st.success(f"✅ Welcome {username}! Redirecting to dashboard...")
-            st.experimental_rerun()
+            st.rerun()
         else:
             st.error("❌ Invalid username or password")
 
@@ -83,7 +83,7 @@ else:
     if st.session_state.active_tab == "Logout":
         st.session_state.logged_in = False
         st.session_state.username = ""
-        st.experimental_rerun()
+        st.rerun()
 
     # ---- Pages ----
     if st.session_state.active_tab == "Dashboard":
