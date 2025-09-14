@@ -1,87 +1,88 @@
 import streamlit as st
 import pandas as pd
 
-st.set_page_config(page_title="KPI Recommender", layout="wide")
+st.set_page_config(page_title="Prospectra - KPI Recommender", layout="wide")
 
-# ---------- CUSTOM STYLES ----------
-st.markdown("""
+# ---- HEADER ----
+st.markdown(
+    """
     <style>
-        .card {
-            border: 1px solid #ddd;
-            border-radius: 10px;
-            padding: 15px;
-            margin-bottom: 15px;
-            background-color: #fff;
-            box-shadow: 2px 2px 6px rgba(0,0,0,0.05);
+        .title {font-size:32px; font-weight:600; color:#8B0000;}
+        .subtitle {font-size:18px; color:grey;}
+        .status-tag {
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            color: white;
         }
-        .status-extracted {background:#e7f1fb;color:#0056b3;font-weight:bold;padding:4px 8px;border-radius:6px;}
-        .status-validated {background:#d4edda;color:#155724;font-weight:bold;padding:4px 8px;border-radius:6px;}
-        .status-recommended {background:#e2f7e2;color:#0a530a;font-weight:bold;padding:4px 8px;border-radius:6px;}
-        .status-rejected {background:#f8d7da;color:#721c24;font-weight:bold;padding:4px 8px;border-radius:6px;}
-        table td, table th {padding: 8px; text-align: left;}
+        .Extracted {background-color: #5DADE2;}
+        .Validated {background-color: #28B463;}
+        .Rejected {background-color: #E74C3C;}
+        .Recommended {background-color: #17A589;}
     </style>
-""", unsafe_allow_html=True)
+    """,
+    unsafe_allow_html=True
+)
 
-# ---------- HEADER ----------
-st.title("📊 KPI Recommender")
+# ---- NAVIGATION ----
+st.markdown("## 🚀 Prospectra KPI Recommender")
+st.write("---")
 
-# ---------- FILE UPLOAD ----------
-st.subheader("Upload Business Requirements Document (BRD)")
+# ---- FILE UPLOAD ----
+st.subheader("📂 Upload Business Requirements Document (BRD)")
+uploaded_file = st.file_uploader("Drag & drop or browse (PDF, DOC, DOCX, TXT)", type=["pdf", "doc", "docx", "txt"])
 
-col1, col2 = st.columns([3, 2])
-with col1:
-    uploaded_file = st.file_uploader("Drag & drop files here, or click to browse", type=["pdf", "doc", "docx", "txt"])
-with col2:
-    st.info("Easily upload BRDs to extract and track key performance metrics for your work initiatives.")
-    if uploaded_file:
-        st.success(f"✅ File uploaded: {uploaded_file.name}")
+if uploaded_file:
+    st.success("✅ File uploaded successfully!")
     if st.button("Process Uploaded File"):
-        st.write("🔄 Processing file... (AI extraction simulation)")
+        st.info("🔄 Processing file... (mock example)")
 
 st.write("---")
 
-# ---------- PREVIEW EXTRACTED GOALS & KPIs ----------
-st.subheader("Preview Extracted Goals & KPIs")
+# ---- PREVIEW EXTRACTED GOALS & KPIs ----
+st.subheader("📊 Preview Extracted Goals & KPIs")
 
-preview_data = pd.DataFrame({
-    "KPI Name": ["Employee Turnover Rate", "Employee Satisfaction Score", "Employee Retention Rate (1 YR)"],
-    "Description": [
-        "Percentage of employees leaving the company within a year.",
-        "Average score from quarterly employee surveys.",
-        "Percentage of employees remaining after 12 months."
-    ],
-    "Target Value": ["< 15%", "> 8.0/10", "> 85%"],
-    "Status": ["Extracted", "Extracted", "Extracted"],
-    "Actions": ["Review", "Review", "Review"]
-})
+data_extracted = [
+    ["Employee Turnover Rate", "Percentage of employees leaving within a year.", "< 15%", "Extracted"],
+    ["Employee Satisfaction Score", "Average score from quarterly surveys.", "> 8.0/10", "Extracted"],
+    ["Employee Retention Rate (1 YR)", "Employees remaining after 12 months.", "> 85%", "Extracted"]
+]
 
-st.dataframe(preview_data, use_container_width=True)
+df_extracted = pd.DataFrame(data_extracted, columns=["KPI Name", "Description", "Target Value", "Status"])
 
-if st.button("Review and Accept"):
-    st.success("✅ KPIs Accepted")
+def render_status(status):
+    return f"<span class='status-tag {status}'>{status}</span>"
+
+df_extracted["Status"] = df_extracted["Status"].apply(lambda x: render_status(x))
+
+st.write(
+    df_extracted.to_html(escape=False, index=False),
+    unsafe_allow_html=True
+)
+
+st.button("✅ Review and Accept")
 
 st.write("---")
 
-# ---------- EXTRACTED & RECOMMENDED KPIs ----------
-st.subheader("Extracted & Recommended KPIs")
+# ---- RECOMMENDED KPIs ----
+st.subheader("🤖 Extracted & Recommended KPIs")
 
-kpi_data = pd.DataFrame({
-    "KPI Name": [
-        "Employee Turnover Rate",
-        "Employee Satisfaction Score",
-        "Employee Retention Rate (1 YR)",
-        "Involuntary Attrition",
-        "Absenteeism Rate",
-        "Time to Fill"
-    ],
-    "Owner/ SME": ["HR BP 1", "HR BP 3", "HR BP 3", "HR BP 2", "HR BP 4", "HR BP 1"],
-    "Target Value": ["< 15%", "> 8.0/10", "> 85%", "-", "-", "-"],
-    "Status": ["Rejected", "Validated", "Extracted", "Recommended", "Recommended", "Rejected"],
-    "Actions": ["Review Details", "Review Details", "Review Details", "Review Details", "Review Details", "Review Details"]
-})
+data_recommended = [
+    ["Employee Turnover Rate", "HR BP 1", "< 15%", "Rejected"],
+    ["Employee Satisfaction Score", "HR BP 3", "> 8.0/10", "Validated"],
+    ["Employee Retention Rate (1 YR)", "HR BP 3", "> 85%", "Extracted"],
+    ["Involuntary Attrition", "HR BP 2", "-", "Recommended"],
+    ["Absenteeism Rate", "HR BP 4", "-", "Recommended"],
+    ["Time to Fill", "HR BP 1", "-", "Rejected"]
+]
 
-# Display with styling
-st.dataframe(kpi_data, use_container_width=True)
+df_recommended = pd.DataFrame(data_recommended, columns=["KPI Name", "Owner/ SME", "Target Value", "Status"])
+df_recommended["Status"] = df_recommended["Status"].apply(lambda x: render_status(x))
 
-if st.button("Validate"):
-    st.success("✅ Selected KPIs Validated")
+st.write(
+    df_recommended.to_html(escape=False, index=False),
+    unsafe_allow_html=True
+)
+
+st.button("🔒 Validate")
