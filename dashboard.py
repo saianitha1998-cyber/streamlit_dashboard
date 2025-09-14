@@ -196,4 +196,4 @@ else:
                             st.session_state.final_kpis = df_all
                             st.rerun()
 
-            st.button("🔒 Finalize Validation", use_container_width=True)
+            st.button("🔒 Review Details", use_container_width=True)
