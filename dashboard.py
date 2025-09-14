@@ -9,11 +9,13 @@ USER_CREDENTIALS = {
     "user": "user123"
 }
 
-# ---- Session state to store login ----
+# ---- Session state ----
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 if "username" not in st.session_state:
     st.session_state.username = ""
+if "active_tab" not in st.session_state:
+    st.session_state.active_tab = "Dashboard"
 
 # ---- Login Page ----
 if not st.session_state.logged_in:
@@ -32,58 +34,20 @@ if not st.session_state.logged_in:
             st.error("❌ Invalid username or password")
 
 else:
-    # ---- NAVBAR STYLING ----
-    st.markdown("""
-        <style>
-        .nav-tabs {
-            display: flex;
-            justify-content: flex-start;
-            gap: 30px;
-            font-size: 18px;
-            margin-bottom: 20px;
-        }
-        .nav-item {
-            cursor: pointer;
-            padding-bottom: 5px;
-            color: #333333;
-            font-weight: 500;
-        }
-        .nav-item:hover {
-            color: #d00000;
-        }
-        .active-tab {
-            border-bottom: 3px solid #d00000;
-            font-weight: 700;
-            color: #d00000;
-        }
-        </style>
-    """, unsafe_allow_html=True)
+    # ---- NAVBAR ----
+    tabs = ["Dashboard", "KPI Recommender", "JIRA", "AI Insights", "Logout"]
 
-    if "active_tab" not in st.session_state:
-        st.session_state.active_tab = "Dashboard"
+    # create horizontal buttons
+    cols = st.columns(len(tabs))
+    for i, tab in enumerate(tabs):
+        if cols[i].button(tab, use_container_width=True):
+            st.session_state.active_tab = tab
+            if tab == "Logout":
+                st.session_state.logged_in = False
+                st.session_state.username = ""
+            st.rerun()
 
-    # ---- Navbar UI ----
-    tabs_html = f"""
-    <div class="nav-tabs">
-        <div class="nav-item {'active-tab' if st.session_state.active_tab=='Dashboard' else ''}" 
-            onclick="window.location.href='/?tab=Dashboard'">Dashboard</div>
-        <div class="nav-item {'active-tab' if st.session_state.active_tab=='KPI Recommender' else ''}" 
-            onclick="window.location.href='/?tab=KPI Recommender'">KPI Recommender</div>
-        <div class="nav-item {'active-tab' if st.session_state.active_tab=='JIRA' else ''}" 
-            onclick="window.location.href='/?tab=JIRA'">JIRA Integration & Task Management</div>
-        <div class="nav-item {'active-tab' if st.session_state.active_tab=='AI Insights' else ''}" 
-            onclick="window.location.href='/?tab=AI Insights'">AI Insights & Reporting</div>
-        <div class="nav-item" style="margin-left:auto; color:#d00000;" 
-            onclick="window.location.href='/?tab=Logout'">Logout</div>
-    </div>
-    """
-    st.markdown(tabs_html, unsafe_allow_html=True)
-
-    # ---- Logout ----
-    if st.session_state.active_tab == "Logout":
-        st.session_state.logged_in = False
-        st.session_state.username = ""
-        st.rerun()
+    st.markdown("---")
 
     # ---- Pages ----
     if st.session_state.active_tab == "Dashboard":
