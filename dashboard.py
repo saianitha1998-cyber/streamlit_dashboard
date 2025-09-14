@@ -17,6 +17,10 @@ if "brd_uploaded" not in st.session_state:
     st.session_state.brd_uploaded = False
 if "review_done" not in st.session_state:
     st.session_state.review_done = False
+if "extracted" not in st.session_state:
+    st.session_state.extracted = pd.DataFrame()
+if "recommended" not in st.session_state:
+    st.session_state.recommended = pd.DataFrame()
 
 # ---- Badge Renderer ----
 def render_status_badge(status: str) -> str:
@@ -69,6 +73,8 @@ else:
             st.session_state.username = ""
             st.session_state.brd_uploaded = False
             st.session_state.review_done = False
+            st.session_state.extracted = pd.DataFrame()
+            st.session_state.recommended = pd.DataFrame()
             st.rerun()
 
     st.markdown("---")
@@ -104,34 +110,41 @@ else:
                 ["Time to Fill", "HR BP 1", "-", "Rejected"],
             ], columns=["KPI Name", "Owner/ SME", "Target Value", "Status"])
 
-        # ---- Step 1: Always show Preview Extracted after upload ----
+        # ---- Step 1: Preview Extracted ----
         if st.session_state.brd_uploaded:
             st.markdown("### 📊 Preview Extracted Goals & KPIs")
-            st.caption("Review the automatically extracted project goals and KPIs below.")
+            st.caption("Accept or reject the automatically extracted KPIs below.")
 
-            header_cols = st.columns([3, 5, 2, 2, 2])
+            header_cols = st.columns([3, 5, 2, 2, 3])
             headers = ["KPI Name", "Description", "Target Value", "Status", "Actions"]
             for col, h in zip(header_cols, headers):
                 col.markdown(f"**{h}**")
 
             for i, row in st.session_state.extracted.iterrows():
-                cols = st.columns([3, 5, 2, 2, 2])
+                cols = st.columns([3, 5, 2, 2, 3])
                 cols[0].write(row["KPI Name"])
                 cols[1].write(row["Description"])
                 cols[2].write(row["Target Value"])
                 cols[3].markdown(render_status_badge(row["Status"]), unsafe_allow_html=True)
-                if cols[4].button("Review", key=f"review_{i}"):
-                    st.info(f"Review clicked for {row['KPI Name']}")
 
-            # ✅ Always visible
-            if st.button("✅ Review and Accept", use_container_width=True):
+                with cols[4]:
+                    c1, c2 = st.columns([1, 1])
+                    if c1.button("✅ Accept", key=f"accept_prev_{i}"):
+                        st.session_state.extracted.at[i, "Status"] = "Accepted"
+                        st.rerun()
+                    if c2.button("❌ Reject", key=f"reject_prev_{i}"):
+                        st.session_state.extracted.at[i, "Status"] = "Rejected"
+                        st.rerun()
+
+            # Review and accept all preview
+            if st.button("✅ Review and Accept All", use_container_width=True):
                 st.session_state.review_done = True
 
-        # ---- Step 2: After Review → show Recommended along with Preview ----
+        # ---- Step 2: Extracted & Recommended KPIs ----
         if st.session_state.review_done:
             st.markdown("---")
             st.markdown("### 🔎 Extracted & Recommended KPIs")
-            st.caption("Review and manage extracted and recommended KPIs.")
+            st.caption("Validate or reject the extracted and recommended KPIs.")
 
             header_cols = st.columns([3, 3, 2, 2, 4])
             headers = ["KPI Name", "Owner/ SME", "Target Value", "Status", "Actions"]
@@ -144,13 +157,17 @@ else:
                 cols[1].write(row["Owner/ SME"])
                 cols[2].write(row["Target Value"])
                 cols[3].markdown(render_status_badge(row["Status"]), unsafe_allow_html=True)
+
                 with cols[4]:
                     c1, c2, c3 = st.columns([1, 1, 1])
-                    if c1.button("Review", key=f"rec_review_{i}"):
-                        st.info(f"Review clicked for {row['KPI Name']}")
-                    if c2.button("Validate", key=f"rec_validate_{i}"):
-                        st.success(f"Validated {row['KPI Name']}")
-                    if c3.button("Reject", key=f"rec_reject_{i}"):
-                        st.error(f"Rejected {row['KPI Name']}")
+                    if c1.button("✅ Accept", key=f"accept_rec_{i}"):
+                        st.session_state.recommended.at[i, "Status"] = "Accepted"
+                        st.rerun()
+                    if c2.button("✔️ Validate", key=f"validate_rec_{i}"):
+                        st.session_state.recommended.at[i, "Status"] = "Validated"
+                        st.rerun()
+                    if c3.button("❌ Reject", key=f"reject_rec_{i}"):
+                        st.session_state.recommended.at[i, "Status"] = "Rejected"
+                        st.rerun()
 
-            st.button("🔒 Validate", use_container_width=True)
+            st.button("🔒 Finalize Validation", use_container_width=True)
