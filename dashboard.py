@@ -18,6 +18,18 @@ if "brd_uploaded" not in st.session_state:
 if "review_done" not in st.session_state:
     st.session_state.review_done = False
 
+# ---- Badge Renderer ----
+def render_status_badge(status: str) -> str:
+    colors = {
+        "Extracted": "#007bff",     # Blue
+        "Validated": "#28a745",     # Green
+        "Rejected": "#dc3545",      # Red
+        "Recommended": "#17a2b8",   # Cyan
+        "Accepted": "#ffc107",      # Yellow
+    }
+    color = colors.get(status, "#6c757d")  # default gray
+    return f"<span style='background-color:{color}; color:white; padding:3px 8px; border-radius:10px; font-size:13px;'>{status}</span>"
+
 # ---- Login Page ----
 if not st.session_state.logged_in:
     st.title("🔐 Login Page")
@@ -92,7 +104,7 @@ else:
                 ["Time to Fill", "HR BP 1", "-", "Rejected"],
             ], columns=["KPI Name", "Owner/ SME", "Target Value", "Status"])
 
-        # ---- Step 1: Show Preview Extracted ----
+        # ---- Step 1: Always show Preview Extracted after upload ----
         if st.session_state.brd_uploaded:
             st.markdown("### 📊 Preview Extracted Goals & KPIs")
             st.caption("Review the automatically extracted project goals and KPIs below.")
@@ -107,7 +119,7 @@ else:
                 cols[0].write(row["KPI Name"])
                 cols[1].write(row["Description"])
                 cols[2].write(row["Target Value"])
-                cols[3].write(f"🟦 {row['Status']}")
+                cols[3].markdown(render_status_badge(row["Status"]), unsafe_allow_html=True)
                 if cols[4].button("Review", key=f"review_{i}"):
                     st.info(f"Review clicked for {row['KPI Name']}")
 
@@ -116,7 +128,7 @@ else:
                     st.session_state.review_done = True
                     st.rerun()
 
-        # ---- Step 2: After Review → Show Recommended below Preview ----
+        # ---- Step 2: After Review → show Recommended along with Preview ----
         if st.session_state.review_done:
             st.markdown("---")
             st.markdown("### 🔎 Extracted & Recommended KPIs")
@@ -132,7 +144,7 @@ else:
                 cols[0].write(row["KPI Name"])
                 cols[1].write(row["Owner/ SME"])
                 cols[2].write(row["Target Value"])
-                cols[3].write(f"🔘 {row['Status']}")
+                cols[3].markdown(render_status_badge(row["Status"]), unsafe_allow_html=True)
                 with cols[4]:
                     c1, c2, c3 = st.columns([1, 1, 1])
                     if c1.button("Review", key=f"rec_review_{i}"):
