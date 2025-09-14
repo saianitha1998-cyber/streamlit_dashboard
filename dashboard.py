@@ -21,6 +21,17 @@ if "extracted_kpis" not in st.session_state:
 if "recommended_kpis" not in st.session_state:
     st.session_state.recommended_kpis = pd.DataFrame()
 
+# ---- Helper function: Color KPIs ----
+def color_status(val):
+    color_map = {
+        "Validated": "background-color: #d4edda; color: #155724; font-weight:bold;",   # Green
+        "Rejected": "background-color: #f8d7da; color: #721c24; font-weight:bold;",   # Red
+        "Recommended": "background-color: #cce5ff; color: #004085; font-weight:bold;", # Blue
+        "Accepted": "background-color: #fff3cd; color: #856404; font-weight:bold;",   # Yellow
+        "Extracted": "background-color: #e2e3e5; color: #383d41; font-weight:bold;"   # Grey
+    }
+    return color_map.get(val, "")
+
 # ---- Login Page ----
 if not st.session_state.logged_in:
     st.title("🔐 Login Page")
@@ -129,6 +140,9 @@ else:
             st.session_state.extracted_kpis = edited_extracted
             st.success("Extracted KPIs updated!")
 
+        # Styled preview
+        st.dataframe(st.session_state.extracted_kpis.style.applymap(color_status, subset=["Status"]), use_container_width=True)
+
         # ---- Recommended KPIs ----
         st.subheader("🔎 Extracted & Recommended KPIs")
         if st.session_state.recommended_kpis.empty:
@@ -157,6 +171,9 @@ else:
         if st.button("🔒 Validate"):
             st.session_state.recommended_kpis = edited_recommended
             st.success("Recommended KPIs updated!")
+
+        # Styled preview
+        st.dataframe(st.session_state.recommended_kpis.style.applymap(color_status, subset=["Status"]), use_container_width=True)
 
     elif st.session_state.active_tab == "JIRA":
         st.subheader("📌 JIRA Integration & Task Management")
