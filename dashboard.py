@@ -3,74 +3,28 @@ import pandas as pd
 
 st.set_page_config(page_title="Prospectra - KPI Recommender", layout="wide")
 
-# ---- CUSTOM STYLES ----
-st.markdown(
-    """
-    <style>
-        .nav-container {
-            display: flex;
-            justify-content: left;
-            gap: 30px;
-            background-color: #f9f9f9;
-            padding: 12px;
-            border-bottom: 1px solid #ddd;
-        }
-        .nav-item {
-            font-size: 16px;
-            font-weight: 600;
-            color: #444;
-            text-decoration: none;
-            cursor: pointer;
-        }
-        .nav-item:hover {
-            color: #8B0000;
-        }
-        .title {font-size:28px; font-weight:600; color:#8B0000;}
-        .status-tag {
-            padding: 2px 10px;
-            border-radius: 12px;
-            font-size: 12px;
-            font-weight: 600;
-            color: white;
-        }
-        .Extracted {background-color: #5DADE2;}
-        .Validated {background-color: #28B463;}
-        .Rejected {background-color: #E74C3C;}
-        .Recommended {background-color: #17A589;}
-    </style>
-    """,
-    unsafe_allow_html=True
-)
+# ---- TITLE ----
+st.title("📊 Prospectra Dashboard")
 
-# ---- NAVIGATION ----
-if "page" not in st.session_state:
-    st.session_state.page = "KPI Recommender"  # default page
+# ---- NAVIGATION USING TABS ----
+tabs = st.tabs(["Dashboard", "KPI Recommender", "JIRA Integration & Task Management", "AI Insights & Reporting"])
 
-nav_items = ["Dashboard", "KPI Recommender", "JIRA Integration & Task Management", "AI Insights & Reporting"]
-
-st.markdown('<div class="nav-container">' + "".join(
-    [f"<span class='nav-item' onclick='window.parent.postMessage({{\"page\": \"{item}\"}}, \"*\")'>{item}</span>" for item in nav_items]
-) + "</div>", unsafe_allow_html=True)
-
-# ---- HANDLE NAVIGATION ----
-page = st.session_state.page
-
-# ---- PAGE CONTENT ----
-if page == "Dashboard":
-    st.subheader("📊 Welcome to the Main Dashboard")
+# ---- TAB 1: DASHBOARD ----
+with tabs[0]:
+    st.subheader("📊 Main Dashboard")
     st.info("This is a placeholder for the **Dashboard** page.")
 
-elif page == "KPI Recommender":
+# ---- TAB 2: KPI RECOMMENDER ----
+with tabs[1]:
     st.subheader("🤖 KPI Recommender")
 
-    # ---- FILE UPLOAD ----
     uploaded_file = st.file_uploader("📂 Upload BRD (PDF, DOC, DOCX, TXT)", type=["pdf", "doc", "docx", "txt"])
     if uploaded_file:
         st.success("✅ File uploaded successfully!")
         if st.button("Process Uploaded File"):
             st.info("🔄 Processing file... (mock example)")
 
-    # ---- EXTRACTED KPIs ----
+    # ---- PREVIEW EXTRACTED GOALS & KPIs ----
     st.subheader("📊 Preview Extracted Goals & KPIs")
 
     data_extracted = [
@@ -79,12 +33,7 @@ elif page == "KPI Recommender":
         ["Employee Retention Rate (1 YR)", "Employees staying after 12 months.", "> 85%", "Extracted"]
     ]
     df_extracted = pd.DataFrame(data_extracted, columns=["KPI Name", "Description", "Target Value", "Status"])
-
-    def render_status(status):
-        return f"<span class='status-tag {status}'>{status}</span>"
-
-    df_extracted["Status"] = df_extracted["Status"].apply(lambda x: render_status(x))
-    st.write(df_extracted.to_html(escape=False, index=False), unsafe_allow_html=True)
+    st.table(df_extracted)
 
     st.button("✅ Review and Accept")
 
@@ -100,15 +49,16 @@ elif page == "KPI Recommender":
         ["Time to Fill", "HR BP 1", "-", "Rejected"]
     ]
     df_recommended = pd.DataFrame(data_recommended, columns=["KPI Name", "Owner/ SME", "Target Value", "Status"])
-    df_recommended["Status"] = df_recommended["Status"].apply(lambda x: render_status(x))
-    st.write(df_recommended.to_html(escape=False, index=False), unsafe_allow_html=True)
+    st.table(df_recommended)
 
     st.button("🔒 Validate")
 
-elif page == "JIRA Integration & Task Management":
+# ---- TAB 3: JIRA INTEGRATION ----
+with tabs[2]:
     st.subheader("📌 JIRA Integration & Task Management")
     st.info("This is a placeholder for JIRA-related dashboards and tasks.")
 
-elif page == "AI Insights & Reporting":
+# ---- TAB 4: AI INSIGHTS ----
+with tabs[3]:
     st.subheader("📈 AI Insights & Reporting")
     st.info("This is a placeholder for AI-driven insights & reports.")
