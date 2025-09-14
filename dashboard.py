@@ -13,6 +13,8 @@ if "username" not in st.session_state:
     st.session_state.username = ""
 if "active_tab" not in st.session_state:
     st.session_state.active_tab = "KPI Recommender"
+if "brd_processed" not in st.session_state:
+    st.session_state.brd_processed = False
 
 # ---- Login Page ----
 if not st.session_state.logged_in:
@@ -51,6 +53,7 @@ else:
         if st.button("Logout", use_container_width=True):
             st.session_state.logged_in = False
             st.session_state.username = ""
+            st.session_state.brd_processed = False
             st.rerun()
 
     st.markdown("---")
@@ -58,66 +61,79 @@ else:
     if st.session_state.active_tab == "KPI Recommender":
         st.subheader("🤖 KPI Recommender")
 
-        # ---- Mock Data ----
-        extracted = pd.DataFrame([
-            ["Employee Turnover Rate", "Percentage of employees leaving within a year.", "< 15%", "Extracted"],
-            ["Employee Satisfaction Score", "Average quarterly employee survey score.", "> 8.0/10", "Extracted"],
-            ["Employee Retention Rate (1 YR)", "Employees remaining after 12 months.", "> 85%", "Extracted"],
-        ], columns=["KPI Name", "Description", "Target Value", "Status"])
+        # ---- Upload BRD ----
+        uploaded_file = st.file_uploader(
+            "📂 Upload Business Requirements Document (BRD)",
+            type=["docx", "pdf", "txt"]
+        )
 
-        recommended = pd.DataFrame([
-            ["Employee Turnover Rate", "HR BP 1", "< 15%", "Rejected"],
-            ["Employee Satisfaction Score", "HR BP 3", "> 8.0/10", "Validated"],
-            ["Employee Retention Rate (1 YR)", "HR BP 3", "> 85%", "Extracted"],
-            ["Involuntary Attrition", "HR BP 2", "-", "Recommended"],
-            ["Absenteeism Rate", "HR BP 4", "-", "Recommended"],
-            ["Time to Fill", "HR BP 1", "-", "Rejected"],
-        ], columns=["KPI Name", "Owner/ SME", "Target Value", "Status"])
+        if uploaded_file and st.button("Process Uploaded File"):
+            # In real case: run your text extraction + KPI extraction logic
+            st.session_state.brd_processed = True
 
-        # ---- Preview Extracted Goals & KPIs ----
-        st.markdown("### 📊 Preview Extracted Goals & KPIs")
-        st.caption("Review the automatically extracted project goals and KPIs below.")
+            # Mock extracted KPIs
+            st.session_state.extracted = pd.DataFrame([
+                ["Employee Turnover Rate", "Percentage of employees leaving within a year.", "< 15%", "Extracted"],
+                ["Employee Satisfaction Score", "Average quarterly employee survey score.", "> 8.0/10", "Extracted"],
+                ["Employee Retention Rate (1 YR)", "Employees remaining after 12 months.", "> 85%", "Extracted"],
+            ], columns=["KPI Name", "Description", "Target Value", "Status"])
 
-        header_cols = st.columns([3, 5, 2, 2, 2])
-        headers = ["KPI Name", "Description", "Target Value", "Status", "Actions"]
-        for col, h in zip(header_cols, headers):
-            col.markdown(f"**{h}**")
+            # Mock recommended KPIs
+            st.session_state.recommended = pd.DataFrame([
+                ["Employee Turnover Rate", "HR BP 1", "< 15%", "Rejected"],
+                ["Employee Satisfaction Score", "HR BP 3", "> 8.0/10", "Validated"],
+                ["Employee Retention Rate (1 YR)", "HR BP 3", "> 85%", "Extracted"],
+                ["Involuntary Attrition", "HR BP 2", "-", "Recommended"],
+                ["Absenteeism Rate", "HR BP 4", "-", "Recommended"],
+                ["Time to Fill", "HR BP 1", "-", "Rejected"],
+            ], columns=["KPI Name", "Owner/ SME", "Target Value", "Status"])
 
-        for i, row in extracted.iterrows():
-            cols = st.columns([3, 5, 2, 2, 2])
-            cols[0].write(row["KPI Name"])
-            cols[1].write(row["Description"])
-            cols[2].write(row["Target Value"])
-            cols[3].write(f"🟦 {row['Status']}")
-            if cols[4].button("Review", key=f"review_{i}"):
-                st.info(f"Review clicked for {row['KPI Name']}")
+        # ---- Only show tables after processing ----
+        if st.session_state.brd_processed:
+            # ---- Preview Extracted Goals & KPIs ----
+            st.markdown("### 📊 Preview Extracted Goals & KPIs")
+            st.caption("Review the automatically extracted project goals and KPIs below.")
 
-        st.button("✅ Review and Accept", use_container_width=True)
+            header_cols = st.columns([3, 5, 2, 2, 2])
+            headers = ["KPI Name", "Description", "Target Value", "Status", "Actions"]
+            for col, h in zip(header_cols, headers):
+                col.markdown(f"**{h}**")
 
-        st.markdown("---")
-
-        # ---- Extracted & Recommended KPIs ----
-        st.markdown("### 🔎 Extracted & Recommended KPIs")
-        st.caption("Review and manage extracted and recommended KPIs.")
-
-        header_cols = st.columns([3, 3, 2, 2, 4])
-        headers = ["KPI Name", "Owner/ SME", "Target Value", "Status", "Actions"]
-        for col, h in zip(header_cols, headers):
-            col.markdown(f"**{h}**")
-
-        for i, row in recommended.iterrows():
-            cols = st.columns([3, 3, 2, 2, 4])
-            cols[0].write(row["KPI Name"])
-            cols[1].write(row["Owner/ SME"])
-            cols[2].write(row["Target Value"])
-            cols[3].write(f"🔘 {row['Status']}")
-            with cols[4]:
-                c1, c2, c3 = st.columns([1, 1, 1])
-                if c1.button("Review", key=f"rec_review_{i}"):
+            for i, row in st.session_state.extracted.iterrows():
+                cols = st.columns([3, 5, 2, 2, 2])
+                cols[0].write(row["KPI Name"])
+                cols[1].write(row["Description"])
+                cols[2].write(row["Target Value"])
+                cols[3].write(f"🟦 {row['Status']}")
+                if cols[4].button("Review", key=f"review_{i}"):
                     st.info(f"Review clicked for {row['KPI Name']}")
-                if c2.button("Validate", key=f"rec_validate_{i}"):
-                    st.success(f"Validated {row['KPI Name']}")
-                if c3.button("Reject", key=f"rec_reject_{i}"):
-                    st.error(f"Rejected {row['KPI Name']}")
 
-        st.button("🔒 Validate", use_container_width=True)
+            st.button("✅ Review and Accept", use_container_width=True)
+
+            st.markdown("---")
+
+            # ---- Extracted & Recommended KPIs ----
+            st.markdown("### 🔎 Extracted & Recommended KPIs")
+            st.caption("Review and manage extracted and recommended KPIs.")
+
+            header_cols = st.columns([3, 3, 2, 2, 4])
+            headers = ["KPI Name", "Owner/ SME", "Target Value", "Status", "Actions"]
+            for col, h in zip(header_cols, headers):
+                col.markdown(f"**{h}**")
+
+            for i, row in st.session_state.recommended.iterrows():
+                cols = st.columns([3, 3, 2, 2, 4])
+                cols[0].write(row["KPI Name"])
+                cols[1].write(row["Owner/ SME"])
+                cols[2].write(row["Target Value"])
+                cols[3].write(f"🔘 {row['Status']}")
+                with cols[4]:
+                    c1, c2, c3 = st.columns([1, 1, 1])
+                    if c1.button("Review", key=f"rec_review_{i}"):
+                        st.info(f"Review clicked for {row['KPI Name']}")
+                    if c2.button("Validate", key=f"rec_validate_{i}"):
+                        st.success(f"Validated {row['KPI Name']}")
+                    if c3.button("Reject", key=f"rec_reject_{i}"):
+                        st.error(f"Rejected {row['KPI Name']}")
+
+            st.button("🔒 Validate", use_container_width=True)
