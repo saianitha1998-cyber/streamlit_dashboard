@@ -41,38 +41,12 @@ else:
     # ---- NAVBAR STYLING ----
     st.markdown("""
         <style>
-        .navbar {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 5px 10px;
-        }
-        .nav-left {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-        .nav-tabs {
-            display: flex;
-            gap: 40px;
-            font-size: 18px;
-            font-weight: 500;
-        }
-        button[kind="secondary"] {
-            background: none !important;
-            border: none !important;
-            box-shadow: none !important;
-            color: #333333 !important;
-        }
-        button[kind="secondary"]:hover {
-            color: #d00000 !important;
-        }
-        .active-button {
-            color: #d00000 !important;
-            font-weight: 700 !important;
-            border-bottom: 3px solid #d00000 !important;
-            padding-bottom: 3px !important;
-        }
+        .navbar { display: flex; align-items: center; justify-content: space-between; padding: 5px 10px; }
+        .nav-left { display: flex; align-items: center; gap: 15px; }
+        .nav-tabs { display: flex; gap: 40px; font-size: 18px; font-weight: 500; }
+        button[kind="secondary"] { background: none !important; border: none !important; box-shadow: none !important; color: #333333 !important; }
+        button[kind="secondary"]:hover { color: #d00000 !important; }
+        .active-button { color: #d00000 !important; font-weight: 700 !important; border-bottom: 3px solid #d00000 !important; padding-bottom: 3px !important; }
         </style>
     """, unsafe_allow_html=True)
 
@@ -80,7 +54,6 @@ else:
     nav_left, nav_right = st.columns([4, 1])
 
     with nav_left:
-        # Prospectra logo + app name
         st.markdown(
             """
             <div class="nav-left">
@@ -91,7 +64,6 @@ else:
             unsafe_allow_html=True
         )
 
-        # ---- Navbar buttons ----
         tabs = ["Dashboard", "KPI Recommender", "JIRA", "AI Insights"]
         cols = st.columns(len(tabs))
         for i, tab in enumerate(tabs):
@@ -109,7 +81,6 @@ else:
                     st.rerun()
 
     with nav_right:
-        # Logout button aligned right
         if st.button("Logout", key="logout", use_container_width=True):
             st.session_state.logged_in = False
             st.session_state.username = ""
@@ -142,7 +113,6 @@ else:
             ]
             st.session_state.extracted_kpis = pd.DataFrame(data_extracted, columns=["KPI Name", "Description", "Target Value", "Status"])
 
-        # Editable table for extracted KPIs with dropdowns
         edited_extracted = st.data_editor(
             st.session_state.extracted_kpis,
             column_config={
@@ -172,7 +142,6 @@ else:
             ]
             st.session_state.recommended_kpis = pd.DataFrame(data_recommended, columns=["KPI Name", "Owner/ SME", "Target Value", "Status"])
 
-        # Editable table for recommended KPIs with dropdowns
         edited_recommended = st.data_editor(
             st.session_state.recommended_kpis,
             column_config={
@@ -188,13 +157,6 @@ else:
         if st.button("🔒 Validate"):
             st.session_state.recommended_kpis = edited_recommended
             st.success("Recommended KPIs updated!")
-
-        # Show current tables
-        st.subheader("📄 Current Extracted KPIs")
-        st.dataframe(st.session_state.extracted_kpis, use_container_width=True)
-
-        st.subheader("📄 Current Recommended KPIs")
-        st.dataframe(st.session_state.recommended_kpis, use_container_width=True)
 
     elif st.session_state.active_tab == "JIRA":
         st.subheader("📌 JIRA Integration & Task Management")
