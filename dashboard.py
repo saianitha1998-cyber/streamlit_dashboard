@@ -13,8 +13,10 @@ if "username" not in st.session_state:
     st.session_state.username = ""
 if "active_tab" not in st.session_state:
     st.session_state.active_tab = "KPI Recommender"
-if "brd_processed" not in st.session_state:
-    st.session_state.brd_processed = False
+if "brd_uploaded" not in st.session_state:
+    st.session_state.brd_uploaded = False
+if "review_done" not in st.session_state:
+    st.session_state.review_done = False
 
 # ---- Login Page ----
 if not st.session_state.logged_in:
@@ -53,7 +55,8 @@ else:
         if st.button("Logout", use_container_width=True):
             st.session_state.logged_in = False
             st.session_state.username = ""
-            st.session_state.brd_processed = False
+            st.session_state.brd_uploaded = False
+            st.session_state.review_done = False
             st.rerun()
 
     st.markdown("---")
@@ -68,8 +71,9 @@ else:
         )
 
         if uploaded_file and st.button("Process Uploaded File"):
-            # In real case: run your text extraction + KPI extraction logic
-            st.session_state.brd_processed = True
+            # Simulated extraction
+            st.session_state.brd_uploaded = True
+            st.session_state.review_done = False
 
             # Mock extracted KPIs
             st.session_state.extracted = pd.DataFrame([
@@ -88,9 +92,8 @@ else:
                 ["Time to Fill", "HR BP 1", "-", "Rejected"],
             ], columns=["KPI Name", "Owner/ SME", "Target Value", "Status"])
 
-        # ---- Only show tables after processing ----
-        if st.session_state.brd_processed:
-            # ---- Preview Extracted Goals & KPIs ----
+        # ---- Step 1: Show Preview Extracted only ----
+        if st.session_state.brd_uploaded and not st.session_state.review_done:
             st.markdown("### 📊 Preview Extracted Goals & KPIs")
             st.caption("Review the automatically extracted project goals and KPIs below.")
 
@@ -108,11 +111,12 @@ else:
                 if cols[4].button("Review", key=f"review_{i}"):
                     st.info(f"Review clicked for {row['KPI Name']}")
 
-            st.button("✅ Review and Accept", use_container_width=True)
+            if st.button("✅ Review and Accept", use_container_width=True):
+                st.session_state.review_done = True
+                st.rerun()
 
-            st.markdown("---")
-
-            # ---- Extracted & Recommended KPIs ----
+        # ---- Step 2: After Review → Show Recommended ----
+        if st.session_state.review_done:
             st.markdown("### 🔎 Extracted & Recommended KPIs")
             st.caption("Review and manage extracted and recommended KPIs.")
 
