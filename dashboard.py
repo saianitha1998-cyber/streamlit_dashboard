@@ -7,24 +7,19 @@ st.set_page_config(page_title="Prospectra Dashboard", layout="wide")
 USER_CREDENTIALS = {"admin": "admin123", "user": "user123"}
 
 # ---- Session state defaults ----
-if "logged_in" not in st.session_state:
-    st.session_state.logged_in = False
-if "username" not in st.session_state:
-    st.session_state.username = ""
-if "active_tab" not in st.session_state:
-    st.session_state.active_tab = "KPI Recommender"
-if "brd_uploaded" not in st.session_state:
-    st.session_state.brd_uploaded = False
-if "review_done" not in st.session_state:
-    st.session_state.review_done = False
-if "extracted" not in st.session_state:
-    st.session_state.extracted = pd.DataFrame()
-if "recommended" not in st.session_state:
-    st.session_state.recommended = pd.DataFrame()
-if "preview_actions" not in st.session_state:
-    st.session_state.preview_actions = {}
-if "final_kpis" not in st.session_state:
-    st.session_state.final_kpis = pd.DataFrame()
+for key, value in {
+    "logged_in": False,
+    "username": "",
+    "active_tab": "Dashboard",
+    "brd_uploaded": False,
+    "review_done": False,
+    "extracted": pd.DataFrame(),
+    "recommended": pd.DataFrame(),
+    "preview_actions": {},
+    "final_kpis": pd.DataFrame()
+}.items():
+    if key not in st.session_state:
+        st.session_state[key] = value
 
 
 # ---- Badge Renderer ----
@@ -53,16 +48,19 @@ if not st.session_state.logged_in:
         else:
             st.error("❌ Invalid username or password")
 
+
 # ---- Main App ----
 else:
-    # ---- Navbar with Home, Search, Notifications ----
+    # ---- Navbar with Tabs, Home, Search, Notifications ----
     nav_left, nav_center, nav_right = st.columns([2, 6, 2])
 
+    # Home button
     with nav_left:
         if st.button("🏠 Home", use_container_width=True):
             st.session_state.active_tab = "Dashboard"
             st.rerun()
 
+    # Tabs and Search
     with nav_center:
         st.markdown(
             """
@@ -73,28 +71,40 @@ else:
             """,
             unsafe_allow_html=True,
         )
-        search_query = st.text_input("🔍 Search KPIs...", key="search_box")
+        search_query = st.text_input("🔍 Search...", key="search_box")
 
+    # Notifications and Logout
     with nav_right:
         if st.button("🔔 Notifications", use_container_width=True):
             st.info("You have new notifications!")
         if st.button("Logout", use_container_width=True):
-            st.session_state.logged_in = False
-            st.session_state.username = ""
-            st.session_state.brd_uploaded = False
-            st.session_state.review_done = False
-            st.session_state.extracted = pd.DataFrame()
-            st.session_state.recommended = pd.DataFrame()
-            st.session_state.preview_actions = {}
-            st.session_state.final_kpis = pd.DataFrame()
+            for key in ["logged_in","username","brd_uploaded","review_done","extracted","recommended","preview_actions","final_kpis"]:
+                st.session_state[key] = False if isinstance(st.session_state[key], bool) else pd.DataFrame() if isinstance(st.session_state[key], pd.DataFrame) else {}
             st.rerun()
 
     st.markdown("---")
 
-    if st.session_state.active_tab == "KPI Recommender":
-        st.subheader("🤖 KPI Recommender")
+    # ---- Sidebar Tabs ----
+    tabs = ["Dashboard", "KPI Recommender", "JIRA / Task Management", "AI Insights & Reporting"]
+    tab_cols = st.columns(len(tabs))
+    for i, tab in enumerate(tabs):
+        if tab_cols[i].button(tab, use_container_width=True):
+            st.session_state.active_tab = tab
+            st.rerun()
 
-        # ---- Upload BRD (mocked KPIs) ----
+    st.markdown("---")
+
+    # ---- Render Pages Based on Tab ----
+    active_tab = st.session_state.active_tab
+
+    if active_tab == "Dashboard":
+        st.header("📊 Dashboard")
+        st.info("This is the main dashboard overview. KPIs, charts, and summary metrics will appear here.")
+
+    elif active_tab == "KPI Recommender":
+        st.header("🤖 KPI Recommender")
+
+        # ---- Upload BRD (mocked) ----
         uploaded_file = st.file_uploader(
             "📂 Upload Business Requirements Document (BRD)",
             type=["docx", "pdf", "txt"]
@@ -122,7 +132,7 @@ else:
 
         # ---- Step 1: Preview Extracted ----
         if st.session_state.brd_uploaded:
-            st.markdown("### 📊 Preview Extracted Goals & KPIs")
+            st.subheader("📊 Preview Extracted Goals & KPIs")
             st.caption("Decide Accept/Reject here. Status remains 'Extracted' until you confirm.")
 
             df_preview = st.session_state.extracted.copy()
@@ -163,10 +173,9 @@ else:
                 st.session_state.review_done = True
                 st.rerun()
 
-        # ---- Step 2: Extracted & Recommended KPIs ----
+        # ---- Step 2: Final KPIs ----
         if st.session_state.review_done:
-            st.markdown("---")
-            st.markdown("### 🔎 Extracted & Recommended KPIs")
+            st.subheader("🔎 Extracted & Recommended KPIs")
             st.caption("Preview decisions are final. Recommended KPIs still require action.")
 
             df_all = st.session_state.final_kpis.copy()
@@ -185,10 +194,10 @@ else:
                 cols[3].markdown(render_status_badge(row["Status"]), unsafe_allow_html=True)
 
                 with cols[4]:
-                    if row["Status"] in ["Accepted", "Rejected"]:
+                    if row["Status"] in ["Accepted","Rejected"]:
                         cols[4].markdown(f"🔍 Review Details: **{row['Status']}**")
                     else:
-                        c1, c2 = st.columns([1,1])
+                        c1,c2 = st.columns([1,1])
                         if c1.button("✔️ Validate", key=f"validate_final_{i}"):
                             df_all.at[i,"Status"] = "Validated"
                             st.session_state.final_kpis = df_all
@@ -199,3 +208,11 @@ else:
                             st.rerun()
 
             st.button("🔒 Review Details", use_container_width=True)
+
+    elif active_tab == "JIRA / Task Management":
+        st.header("📝 JIRA / Task Management")
+        st.info("Integration with JIRA and task tracking will be available here.")
+
+    elif active_tab == "AI Insights & Reporting":
+        st.header("🤖 AI Insights & Reporting")
+        st.info("AI-based insights, analytics, and reporting dashboards will appear here.")
