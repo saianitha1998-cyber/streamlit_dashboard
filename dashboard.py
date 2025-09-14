@@ -3,161 +3,87 @@ import pandas as pd
 
 st.set_page_config(page_title="Prospectra Dashboard", layout="wide")
 
-# ---- Mock credentials ----
-USER_CREDENTIALS = {
-    "admin": "admin123",
-    "user": "user123"
-}
-
-# ---- Session state ----
-if "logged_in" not in st.session_state:
-    st.session_state.logged_in = False
-if "username" not in st.session_state:
-    st.session_state.username = ""
-if "active_tab" not in st.session_state:
-    st.session_state.active_tab = "Dashboard"
-
-# ---- Login Page ----
-if not st.session_state.logged_in:
-    st.title("🔐 Login Page")
-
-    username = st.text_input("Username")
-    password = st.text_input("Password", type="password")
-
-    if st.button("Login"):
-        if username in USER_CREDENTIALS and USER_CREDENTIALS[username] == password:
-            st.session_state.logged_in = True
-            st.session_state.username = username
-            st.success(f"✅ Welcome {username}! Redirecting to dashboard...")
-            st.rerun()
-        else:
-            st.error("❌ Invalid username or password")
-
-else:
-    # ---- NAVBAR STYLING ----
-    st.markdown("""
-        <style>
-        .navbar {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 5px 10px;
+# ---- HEADER ----
+st.markdown("""
+    <style>
+        .main-header {
+            font-size:28px;
+            font-weight:bold;
+            color:#8B0000;
         }
-        .nav-left {
-            display: flex;
-            align-items: center;
-            gap: 15px;
+        .status-green {color:green; font-weight:bold;}
+        .status-yellow {color:orange; font-weight:bold;}
+        .status-red {color:red; font-weight:bold;}
+        .card {
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 10px;
+            background-color: #fff;
+            box-shadow: 2px 2px 8px rgba(0,0,0,0.05);
         }
-        .nav-tabs {
-            display: flex;
-            gap: 40px;
-            font-size: 18px;
-            font-weight: 500;
-        }
-        button[kind="secondary"] {
-            background: none !important;
-            border: none !important;
-            box-shadow: none !important;
-            color: #333333 !important;
-        }
-        button[kind="secondary"]:hover {
-            color: #d00000 !important;
-        }
-        .active-button {
-            color: #d00000 !important;
-            font-weight: 700 !important;
-            border-bottom: 3px solid #d00000 !important;
-            padding-bottom: 3px !important;
-        }
-        </style>
-    """, unsafe_allow_html=True)
+    </style>
+""", unsafe_allow_html=True)
 
-    # ---- Navbar Layout ----
-    nav_left, nav_right = st.columns([4, 1])
+st.markdown("<div class='main-header'>📊 Prospectra - Dashboard</div>", unsafe_allow_html=True)
 
-    with nav_left:
-        # Prospectra logo + app name
-        st.markdown(
-            """
-            <div class="nav-left">
-                <img src="https://i.ibb.co/h8rjN50/prospectra-icon.png" width="40">
-                <h3 style="margin:0; color:#d00000;">Prospectra</h3>
+# ---- SEARCH + FILTERS ----
+col1, col2, col3, col4, col5 = st.columns([3,2,2,2,2])
+with col1: st.text_input("Global Search...")
+with col2: st.selectbox("Department", ["All","HR","Finance","IT","Product"])
+with col3: st.selectbox("Owner", ["All","John","Mary","David"])
+with col4: st.selectbox("Timeline", ["All","Q1","Q2","Q3","Q4"])
+with col5: st.selectbox("Status", ["All","On Track","At Risk","Behind Schedule"])
+
+st.write("---")
+
+# ---- ACTIVE PROJECTS ----
+st.subheader("Active Projects (25)")
+
+projects = [
+    {"title":"Attrition and Retention Analysis","dept":"Employee Experience","completion":34,"status":"On Track","desc":"Analyzing why employees leave (attrition) and why they stay (retention)."},
+    {"title":"New Feature Development","dept":"Product Development","completion":60,"status":"At Risk","desc":"Identify and address blocker tasks in sprint 3. Reallocate resources."},
+    {"title":"IT Infrastructure Upgrade","dept":"IT Operations","completion":40,"status":"Behind Schedule","desc":"Deep-dive analysis of recent delays. Urgent issue resolution required."},
+    {"title":"Talent Acquisition Initiative","dept":"Human Resources","completion":75,"status":"On Track","desc":"Leverage LinkedIn Sales Navigator for outreach to passive candidates."},
+    {"title":"Financial Audit & Reporting","dept":"Finance","completion":80,"status":"At Risk","desc":"Prioritize reconciliation of outstanding discrepancies in audit reports."}
+]
+
+cols = st.columns(3)
+for i, project in enumerate(projects):
+    with cols[i % 3]:
+        color = "status-green" if project["status"]=="On Track" else "status-yellow" if project["status"]=="At Risk" else "status-red"
+        st.markdown(f"""
+            <div class='card'>
+                <h4>{project['title']}</h4>
+                <b>{project['dept']}</b><br>
+                Completion: {project['completion']}%<br>
+                Status: <span class='{color}'>{project['status']}</span><br><br>
+                {project['desc']}
             </div>
-            """,
-            unsafe_allow_html=True
-        )
+        """, unsafe_allow_html=True)
 
-        # ---- Navbar buttons ----
-        tabs = ["Dashboard", "KPI Recommender", "JIRA", "AI Insights"]
-        cols = st.columns(len(tabs))
-        for i, tab in enumerate(tabs):
-            if tab == st.session_state.active_tab:
-                if cols[i].button(tab, key=f"tab_{tab}", use_container_width=True):
-                    st.session_state.active_tab = tab
-                    st.rerun()
-                st.markdown(
-                    f"<style>div[data-testid='stButton'] button#tab_{tab} {{color:#d00000; font-weight:700; border-bottom:3px solid #d00000;}}</style>",
-                    unsafe_allow_html=True
-                )
-            else:
-                if cols[i].button(tab, key=f"tab_{tab}", use_container_width=True):
-                    st.session_state.active_tab = tab
-                    st.rerun()
+st.write("---")
 
-    with nav_right:
-        # Logout button aligned right
-        if st.button("Logout", key="logout", use_container_width=True):
-            st.session_state.logged_in = False
-            st.session_state.username = ""
-            st.rerun()
+# ---- KEY INSIGHTS ----
+col1, col2, col3 = st.columns(3)
 
-    st.markdown("---")
+with col1:
+    st.markdown("<div class='card'><h4>Risks Identified</h4>"
+                "<ul><li>IT team facing workload delays</li>"
+                "<li>Feature X over budget by 10%</li>"
+                "<li>Marketing campaign underperforming</li></ul>"
+                "</div>", unsafe_allow_html=True)
 
-    # ---- Pages ----
-    if st.session_state.active_tab == "Dashboard":
-        st.subheader("📊 Main Dashboard")
-        st.info("This is a placeholder for the **Dashboard** page.")
+with col2:
+    st.markdown("<div class='card'><h4>AI Recommendations</h4>"
+                "<ul><li>Projects 'At Risk' need stakeholder sync + daily quick-check</li>"
+                "<li>Forecast positive impact of 1.2M USD from Q3 campaign</li></ul>"
+                "</div>", unsafe_allow_html=True)
 
-    elif st.session_state.active_tab == "KPI Recommender":
-        st.subheader("🤖 KPI Recommender")
-
-        uploaded_file = st.file_uploader("📂 Upload BRD (PDF, DOC, DOCX, TXT)", type=["pdf", "doc", "docx", "txt"])
-        if uploaded_file:
-            st.success("✅ File uploaded successfully!")
-            if st.button("Process Uploaded File"):
-                st.info("🔄 Processing file... (mock example)")
-
-        # ---- Preview Extracted KPIs ----
-        st.subheader("📊 Preview Extracted Goals & KPIs")
-        data_extracted = [
-            ["Employee Turnover Rate", "Percentage leaving within a year.", "< 15%", "Extracted"],
-            ["Employee Satisfaction Score", "Average quarterly survey score.", "> 8.0/10", "Extracted"],
-            ["Employee Retention Rate (1 YR)", "Employees staying after 12 months.", "> 85%", "Extracted"]
-        ]
-        df_extracted = pd.DataFrame(data_extracted, columns=["KPI Name", "Description", "Target Value", "Status"])
-        st.table(df_extracted)
-
-        st.button("✅ Review and Accept")
-
-        # ---- Recommended KPIs ----
-        st.subheader("🔎 Extracted & Recommended KPIs")
-        data_recommended = [
-            ["Employee Turnover Rate", "HR BP 1", "< 15%", "Rejected"],
-            ["Employee Satisfaction Score", "HR BP 3", "> 8.0/10", "Validated"],
-            ["Employee Retention Rate (1 YR)", "HR BP 3", "> 85%", "Extracted"],
-            ["Involuntary Attrition", "HR BP 2", "-", "Recommended"],
-            ["Absenteeism Rate", "HR BP 4", "-", "Recommended"],
-            ["Time to Fill", "HR BP 1", "-", "Rejected"]
-        ]
-        df_recommended = pd.DataFrame(data_recommended, columns=["KPI Name", "Owner/ SME", "Target Value", "Status"])
-        st.table(df_recommended)
-
-        st.button("🔒 Validate")
-
-    elif st.session_state.active_tab == "JIRA":
-        st.subheader("📌 JIRA Integration & Task Management")
-        st.info("This is a placeholder for JIRA-related dashboards and tasks.")
-
-    elif st.session_state.active_tab == "AI Insights":
-        st.subheader("📈 AI Insights & Reporting")
-        st.info("This is a placeholder for AI-driven insights & reports.")
+with col3:
+    st.markdown("<div class='card'><h4>Overall Project Summary</h4>"
+                "Total Projects: <b>25</b><br>"
+                "✅ On Track: <b>18</b><br>"
+                "⚠️ At Risk: <b>05</b><br>"
+                "⏳ Behind Schedule: <b>01</b><br>"
+                "</div>", unsafe_allow_html=True)
