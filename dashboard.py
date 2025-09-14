@@ -1,8 +1,5 @@
 import streamlit as st
 import pandas as pd
-from io import BytesIO
-import docx
-import PyPDF2
 
 st.set_page_config(page_title="Prospectra Dashboard", layout="wide")
 
@@ -25,7 +22,7 @@ if "extracted" not in st.session_state:
 if "recommended" not in st.session_state:
     st.session_state.recommended = pd.DataFrame()
 if "preview_actions" not in st.session_state:
-    st.session_state.preview_actions = {}  # Accept/Reject selections
+    st.session_state.preview_actions = {}
 if "final_kpis" not in st.session_state:
     st.session_state.final_kpis = pd.DataFrame()
 
@@ -41,40 +38,6 @@ def render_status_badge(status: str) -> str:
     }
     color = colors.get(status, "#6c757d")
     return f"<span style='background-color:{color}; color:white; padding:3px 8px; border-radius:10px; font-size:13px;'>{status}</span>"
-
-
-# ---- Function to read KPI from uploaded file ----
-def extract_kpis_from_file(uploaded_file):
-    kpi_list = []
-    text_content = ""
-
-    if uploaded_file.type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-        doc = docx.Document(uploaded_file)
-        text_content = "\n".join([p.text for p in doc.paragraphs])
-    elif uploaded_file.type == "application/pdf":
-        reader = PyPDF2.PdfReader(uploaded_file)
-        text_content = "\n".join([page.extract_text() for page in reader.pages])
-    elif uploaded_file.type == "text/plain":
-        text_content = str(uploaded_file.read(), 'utf-8')
-    else:
-        st.error("Unsupported file type!")
-        return pd.DataFrame()
-
-    # Simple parsing: assume each KPI line contains "KPI" keyword
-    lines = [line.strip() for line in text_content.split("\n") if line.strip()]
-    for line in lines:
-        if ":" in line:
-            parts = line.split(":")
-            if len(parts) >= 2:
-                kpi_name = parts[0].strip()
-                desc = parts[1].strip()
-                kpi_list.append([kpi_name, desc, "-", "Extracted"])
-
-    if not kpi_list:
-        for line in lines:
-            kpi_list.append([line[:30], line, "-", "Extracted"])  # fallback
-
-    return pd.DataFrame(kpi_list, columns=["KPI Name", "Description", "Target Value", "Status"])
 
 
 # ---- Login Page ----
@@ -131,7 +94,7 @@ else:
     if st.session_state.active_tab == "KPI Recommender":
         st.subheader("🤖 KPI Recommender")
 
-        # ---- Upload BRD ----
+        # ---- Upload BRD (mocked KPIs) ----
         uploaded_file = st.file_uploader(
             "📂 Upload Business Requirements Document (BRD)",
             type=["docx", "pdf", "txt"]
@@ -143,9 +106,14 @@ else:
             st.session_state.preview_actions = {}
             st.session_state.final_kpis = pd.DataFrame()
 
-            st.session_state.extracted = extract_kpis_from_file(uploaded_file)
+            # ---- Mock extracted KPIs ----
+            st.session_state.extracted = pd.DataFrame([
+                ["Employee Turnover Rate", "Percentage leaving within a year.", "< 15%", "Extracted"],
+                ["Employee Satisfaction Score", "Average quarterly survey score.", "> 8.0/10", "Extracted"],
+                ["Employee Retention Rate (1 YR)", "Employees staying after 12 months.", "> 85%", "Extracted"],
+            ], columns=["KPI Name", "Description", "Target Value", "Status"])
 
-            # Mock recommended KPIs
+            # ---- Mock recommended KPIs ----
             st.session_state.recommended = pd.DataFrame([
                 ["Involuntary Attrition", "HR BP 2", "-", "Recommended"],
                 ["Absenteeism Rate", "HR BP 4", "-", "Recommended"],
@@ -161,12 +129,12 @@ else:
             if search_query:
                 df_preview = df_preview[df_preview["KPI Name"].str.contains(search_query, case=False)]
 
-            header_cols = st.columns([3, 5, 2, 2, 3])
-            for col, h in zip(header_cols, ["KPI Name", "Description", "Target Value", "Status", "Actions"]):
+            header_cols = st.columns([3,5,2,2,3])
+            for col, h in zip(header_cols, ["KPI Name","Description","Target Value","Status","Actions"]):
                 col.markdown(f"**{h}**")
 
             for i, row in df_preview.iterrows():
-                cols = st.columns([3, 5, 2, 2, 3])
+                cols = st.columns([3,5,2,2,3])
                 cols[0].write(row["KPI Name"])
                 cols[1].write(row["Description"])
                 cols[2].write(row["Target Value"])
@@ -180,7 +148,6 @@ else:
                     if c2.button("❌ Reject", key=f"reject_prev_{i}"):
                         st.session_state.preview_actions[i] = "Rejected"
                         st.rerun()
-
                 if i in st.session_state.preview_actions:
                     cols[4].markdown(f"➡️ Selected: **{st.session_state.preview_actions[i]}**")
 
