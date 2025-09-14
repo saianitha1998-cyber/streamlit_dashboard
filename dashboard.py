@@ -22,7 +22,7 @@ if "extracted" not in st.session_state:
 if "recommended" not in st.session_state:
     st.session_state.recommended = pd.DataFrame()
 if "preview_actions" not in st.session_state:
-    st.session_state.preview_actions = {}  # stores Accept/Reject from Preview
+    st.session_state.preview_actions = {}  # Accept/Reject selections
 if "final_kpis" not in st.session_state:
     st.session_state.final_kpis = pd.DataFrame()
 
@@ -95,7 +95,6 @@ else:
         )
 
         if uploaded_file and st.button("Process Uploaded File"):
-            # Simulated extraction
             st.session_state.brd_uploaded = True
             st.session_state.review_done = False
             st.session_state.preview_actions = {}
@@ -118,7 +117,7 @@ else:
         # ---- Step 1: Preview Extracted ----
         if st.session_state.brd_uploaded:
             st.markdown("### 📊 Preview Extracted Goals & KPIs")
-            st.caption("Accept or reject the automatically extracted KPIs below. Status remains 'Extracted' here.")
+            st.caption("Decide Accept/Reject here. Status remains 'Extracted' until you confirm.")
 
             header_cols = st.columns([3, 5, 2, 2, 3])
             headers = ["KPI Name", "Description", "Target Value", "Status", "Actions"]
@@ -145,7 +144,7 @@ else:
                     cols[4].markdown(f"➡️ Selected: **{st.session_state.preview_actions[i]}**")
 
             if st.button("✅ Review and Accept", use_container_width=True):
-                # Merge preview actions into extracted
+                # Transfer preview decisions into final_kpis
                 extracted_with_status = []
                 for i, row in st.session_state.extracted.iterrows():
                     status = st.session_state.preview_actions.get(i, "Extracted")
@@ -156,7 +155,7 @@ else:
                     columns=["KPI Name", "Owner/ SME", "Target Value", "Status"]
                 )
 
-                # Merge preview decisions with recommended
+                # Merge with recommended KPIs
                 df_all = pd.concat([df_preview, st.session_state.recommended], ignore_index=True)
 
                 st.session_state.final_kpis = df_all
@@ -167,36 +166,34 @@ else:
         if st.session_state.review_done:
             st.markdown("---")
             st.markdown("### 🔎 Extracted & Recommended KPIs")
-            st.caption("Includes your accepted/rejected preview KPIs and the additional recommended KPIs.")
+            st.caption("Preview decisions are final. Recommended KPIs still require action.")
 
             df_all = st.session_state.final_kpis.copy()
 
-            # Display table with actions
-            header_cols = st.columns([3, 3, 2, 2, 4])
+            header_cols = st.columns([3, 3, 2, 2, 3])
             headers = ["KPI Name", "Owner/ SME", "Target Value", "Status", "Actions"]
             for col, h in zip(header_cols, headers):
                 col.markdown(f"**{h}**")
 
             for i, row in df_all.iterrows():
-                cols = st.columns([3, 3, 2, 2, 4])
+                cols = st.columns([3, 3, 2, 2, 3])
                 cols[0].write(row["KPI Name"])
                 cols[1].write(row["Owner/ SME"])
                 cols[2].write(row["Target Value"])
                 cols[3].markdown(render_status_badge(row["Status"]), unsafe_allow_html=True)
 
                 with cols[4]:
-                    c1, c2, c3 = st.columns([1, 1, 1])
-                    if c1.button("✅ Accept", key=f"accept_final_{i}"):
-                        df_all.at[i, "Status"] = "Accepted"
-                        st.session_state.final_kpis = df_all
-                        st.rerun()
-                    if c2.button("✔️ Validate", key=f"validate_final_{i}"):
-                        df_all.at[i, "Status"] = "Validated"
-                        st.session_state.final_kpis = df_all
-                        st.rerun()
-                    if c3.button("❌ Reject", key=f"reject_final_{i}"):
-                        df_all.at[i, "Status"] = "Rejected"
-                        st.session_state.final_kpis = df_all
-                        st.rerun()
+                    if row["Status"] in ["Accepted", "Rejected"]:
+                        cols[4].markdown(f"✔️ Finalized: **{row['Status']}**")
+                    else:
+                        c1, c2 = st.columns([1, 1])
+                        if c1.button("✔️ Validate", key=f"validate_final_{i}"):
+                            df_all.at[i, "Status"] = "Validated"
+                            st.session_state.final_kpis = df_all
+                            st.rerun()
+                        if c2.button("❌ Reject", key=f"reject_final_{i}"):
+                            df_all.at[i, "Status"] = "Rejected"
+                            st.session_state.final_kpis = df_all
+                            st.rerun()
 
             st.button("🔒 Finalize Validation", use_container_width=True)
