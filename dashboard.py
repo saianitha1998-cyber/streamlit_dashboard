@@ -34,18 +34,56 @@ if not st.session_state.logged_in:
             st.error("❌ Invalid username or password")
 
 else:
-    # ---- NAVBAR ----
-    tabs = ["Dashboard", "KPI Recommender", "JIRA", "AI Insights", "Logout"]
+    # ---- NAVBAR STYLING ----
+    st.markdown("""
+        <style>
+        div[data-testid="stHorizontalBlock"] {
+            display: flex;
+            gap: 40px;
+            font-size: 18px;
+            font-weight: 500;
+        }
+        button[kind="secondary"] {
+            background: none !important;
+            border: none !important;
+            box-shadow: none !important;
+            color: #333333 !important;
+        }
+        button[kind="secondary"]:hover {
+            color: #d00000 !important;
+        }
+        .active-button {
+            color: #d00000 !important;
+            font-weight: 700 !important;
+            border-bottom: 3px solid #d00000 !important;
+            padding-bottom: 3px !important;
+        }
+        </style>
+    """, unsafe_allow_html=True)
 
-    # create horizontal buttons
+    # ---- Navbar buttons ----
+    tabs = ["Dashboard", "KPI Recommender", "JIRA", "AI Insights", "Logout"]
     cols = st.columns(len(tabs))
+
     for i, tab in enumerate(tabs):
-        if cols[i].button(tab, use_container_width=True):
-            st.session_state.active_tab = tab
-            if tab == "Logout":
-                st.session_state.logged_in = False
-                st.session_state.username = ""
-            st.rerun()
+        if tab == st.session_state.active_tab:
+            # Active button styling
+            if cols[i].button(tab, key=f"tab_{tab}", use_container_width=True):
+                if tab == "Logout":
+                    st.session_state.logged_in = False
+                    st.session_state.username = ""
+                else:
+                    st.session_state.active_tab = tab
+                st.rerun()
+            st.markdown(f"<style>div[data-testid='stButton'] button#tab_{tab} {{color:#d00000; font-weight:700; border-bottom:3px solid #d00000;}}</style>", unsafe_allow_html=True)
+        else:
+            if cols[i].button(tab, key=f"tab_{tab}", use_container_width=True):
+                if tab == "Logout":
+                    st.session_state.logged_in = False
+                    st.session_state.username = ""
+                else:
+                    st.session_state.active_tab = tab
+                st.rerun()
 
     st.markdown("---")
 
