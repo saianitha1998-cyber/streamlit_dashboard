@@ -113,11 +113,7 @@ def extract_kpis_from_text(text: str) -> pd.DataFrame:
     if "integration" in t or "integrat" in t:
         add("Integration Success Rate", "Percent integrations working without manual intervention", "> 95%")
 
-    if not kpis:
-        return pd.DataFrame(columns=["KPI Name", "Description", "Target Value", "Status"])
-
-    df = pd.DataFrame(kpis, columns=["KPI Name", "Description", "Target Value", "Status"])
-    return df.drop_duplicates(subset=["KPI Name"]).reset_index(drop=True)
+    return pd.DataFrame(kpis, columns=["KPI Name", "Description", "Target Value", "Status"])
 
 # ---- Login Page ----
 if not st.session_state.logged_in:
@@ -186,7 +182,7 @@ else:
                 )
                 st.success("✅ KPIs extracted successfully!")
 
-        # ---- Always show Extracted KPIs ----
+        # ---- Preview Extracted Goals & KPIs ----
         st.subheader("📊 Preview Extracted Goals & KPIs")
         if st.session_state.extracted_kpis.empty:
             st.info("No KPIs yet. Showing a sample row.")
@@ -211,7 +207,7 @@ else:
 
         st.dataframe(st.session_state.extracted_kpis.style.applymap(color_status, subset=["Status"]), use_container_width=True)
 
-        # ---- Always show Recommended KPIs ----
+        # ---- Extracted & Recommended KPIs ----
         st.subheader("🔎 Extracted & Recommended KPIs")
         if st.session_state.recommended_kpis.empty:
             st.info("No recommended KPIs yet. Showing a sample row.")
