@@ -2,9 +2,8 @@ import streamlit as st
 import pandas as pd
 from io import BytesIO
 
-# For docx
+# Correct imports for docx and PDF
 import docx
-# For PDF
 import PyPDF2
 
 st.set_page_config(page_title="Prospectra Dashboard", layout="wide")
