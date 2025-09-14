@@ -184,7 +184,8 @@ else:
 
                 with cols[4]:
                     if row["Status"] in ["Accepted", "Rejected"]:
-                        cols[4].markdown(f"✔️ Finalized: **{row['Status']}**")
+                        # Dynamically show review details instead of finalized
+                        cols[4].markdown(f"🔍 Review Details: **{row['Status']}**")
                     else:
                         c1, c2 = st.columns([1, 1])
                         if c1.button("✔️ Validate", key=f"validate_final_{i}"):
